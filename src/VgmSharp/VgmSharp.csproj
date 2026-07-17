@@ -1,18 +1,20 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <DebugType>portable</DebugType>
     <TargetFramework>net8.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Nullable>enable</Nullable>
+    <NeutralLanguage>en-US</NeutralLanguage>
     <ImplicitUsings>enable</ImplicitUsings>
-    <PackageId>VgmSharp</PackageId>
-    <Version>0.1.0</Version>
-    <Authors>you</Authors>
+    <Authors>John Gietzen &amp; vgmstream Authors</Authors>
+    <Copyright>Copyright © 2026 $(Authors)</Copyright>
     <Description>Cross-platform .NET wrapper around vgmstream's libvgmstream C API, for decoding hundreds of video game audio formats.</Description>
     <PackageLicenseExpression>ISC</PackageLicenseExpression>
+    <PackageReadmeFile>readme.md</PackageReadmeFile>
     <PackageTags>vgmstream;audio;game-audio;decoder;wav;pcm</PackageTags>
-    <RepositoryUrl>https://example.com/your-org/VgmSharp</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/otac0n/VgmSharp</PackageProjectUrl>
     <IncludeBuildOutput>true</IncludeBuildOutput>
     <NoWarn>NU5128</NoWarn>
   </PropertyGroup>
@@ -28,6 +30,7 @@
     <None Include="../../buildTransitive/VgmSharp.targets" Pack="true" PackagePath="buildTransitive/VgmSharp.targets" />
     <_VgmSharpNativeLinux Include="../../runtimes/linux-x64/native/**/*" />
     <_VgmSharpNativeWin Include="../../runtimes/win-x64/native/**/*" />
+    <None Include="../../readme.md" Pack="true" PackagePath="\" />
     <None Include="@(_VgmSharpNativeLinux)" Pack="true" PackagePath="runtimes/linux-x64/native/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" Link="%(Filename)%(Extension)" Visible="false" />
     <None Include="@(_VgmSharpNativeWin)" Pack="true" PackagePath="runtimes/win-x64/native/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" Link="%(Filename)%(Extension)" Visible="false" />
     <AdditionalFiles Include="..\..\stylecop.json" Link="stylecop.json" />
