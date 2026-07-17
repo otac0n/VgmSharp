@@ -84,7 +84,44 @@ if (-not $dll) { $dll = Get-ChildItem -Recurse -Filter "vgmstream.dll" -Path . |
 if (-not $dll) { throw "Could not find built DLL under $BuildDir -- see notes above." }
 
 Copy-Item $dll.FullName (Join-Path $OutDir "vgmstream.dll") -Force
-Write-Host "Done: $(Join-Path $OutDir 'vgmstream.dll')"
+
+# vgmstream.dll dynamically links against these on Windows -- they're prebuilt binaries
+# checked directly into the vgmstream repo (ext_libs/dll-x64), not built from source, since
+# the CMake libvgmstream_shared target itself doesn't copy them (only the CLI/plugin targets'
+# install_dlls step does, and we build with BUILD_CLI=OFF). Without them you'll hit
+# DllNotFoundException at libvgmstream_init() -- LoadLibrary reports "module not found" for
+# vgmstream.dll itself even though vgmstream.dll IS present, because one of *its* dependencies
+# is missing; Windows doesn't tell you which one directly, but this is almost always it.
+# This list mirrors cmake/vgmstream.cmake's install_dlls() macro, gated the same way our USE_*
+# cmake flags above are (all on by default except FFmpeg).
+$extLibsDir = Join-Path $SrcDir "ext_libs\dll-x64"
+$companionDlls = @(
+    "libmpg123-0.dll",      # USE_MPEG
+    "libvorbis.dll",        # USE_VORBIS
+    "libg719_decode.dll",   # USE_G719
+    "libatrac9.dll",        # USE_ATRAC9
+    "libcelt-0061.dll",     # USE_CELT
+    "libcelt-0110.dll",     # USE_CELT
+    "libspeex-1.dll"        # USE_SPEEX
+)
+if ($UseFfmpeg) {
+    $companionDlls += @(
+        "avcodec-vgmstream-59.dll",
+        "avformat-vgmstream-59.dll",
+        "avutil-vgmstream-57.dll",
+        "swresample-vgmstream-4.dll"
+    )
+}
+foreach ($name in $companionDlls) {
+    $src = Join-Path $extLibsDir $name
+    if (Test-Path $src) {
+        Copy-Item $src (Join-Path $OutDir $name) -Force
+    } else {
+        Write-Warning "Expected companion DLL not found: $src (if you toggled a USE_* cmake flag off above, remove the matching entry from `$companionDlls here too)"
+    }
+}
+
+Write-Host "Done: $(Join-Path $OutDir 'vgmstream.dll') + $($companionDlls.Count) companion DLL(s)"
 
 Pop-Location
 Pop-Location

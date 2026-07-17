@@ -55,18 +55,18 @@ public sealed class VgmStreamConfig
 
     internal LibvgmstreamConfigT ToNative() => new()
     {
-        disable_config_override = DisableConfigOverride,
-        allow_play_forever = AllowPlayForever,
-        play_forever = PlayForever,
-        ignore_loop = IgnoreLoop,
-        force_loop = ForceLoop,
-        really_force_loop = ReallyForceLoop,
-        ignore_fade = IgnoreFade,
-        loop_count = LoopCount ?? 0,
-        fade_time = FadeTime ?? 0,
-        fade_delay = FadeDelay ?? 0,
-        stereo_track = StereoTrack,
-        auto_downmix_channels = AutoDownmixChannels,
-        force_sfmt = ForceSampleFormat.HasValue ? (LibvgmstreamSfmt)ForceSampleFormat.Value : 0,
+        disable_config_override = this.DisableConfigOverride,
+        allow_play_forever = this.AllowPlayForever,
+        play_forever = this.PlayForever,
+        ignore_loop = this.IgnoreLoop,
+        force_loop = this.ForceLoop,
+        really_force_loop = this.ReallyForceLoop,
+        ignore_fade = this.IgnoreFade,
+        loop_count = this.LoopCount ?? 0,
+        fade_time = this.FadeTime ?? 0,
+        fade_delay = this.FadeDelay ?? 0,
+        stereo_track = this.StereoTrack,
+        auto_downmix_channels = this.AutoDownmixChannels,
+        force_sfmt = this.ForceSampleFormat.HasValue ? (LibvgmstreamSfmt)this.ForceSampleFormat.Value : 0,
     };
 }

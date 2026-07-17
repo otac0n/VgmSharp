@@ -1,6 +1,3 @@
-using System;
-using System.IO;
-
 namespace VgmSharp;
 
 public static class WaveWriter
@@ -13,15 +10,17 @@ public static class WaveWriter
     public static void Write(Stream output, VgmStream stream)
     {
         if (!output.CanSeek)
+        {
             throw new ArgumentException("Output stream must be seekable so header sizes can be patched.", nameof(output));
+        }
 
         var fmt = stream.Format;
-        ushort channels = (ushort)fmt.Channels;
-        uint sampleRate = (uint)fmt.SampleRate;
-        ushort bitsPerSample = (ushort)(fmt.SampleSize * 8);
-        ushort blockAlign = (ushort)(channels * fmt.SampleSize);
-        uint byteRate = sampleRate * blockAlign;
-        ushort audioFormat = fmt.SampleFormat == VgmSampleFormat.Float ? (ushort)3 /* WAVE_FORMAT_IEEE_FLOAT */ : (ushort)1 /* PCM */;
+        var channels = (ushort)fmt.Channels;
+        var sampleRate = (uint)fmt.SampleRate;
+        var bitsPerSample = (ushort)(fmt.SampleSize * 8);
+        var blockAlign = (ushort)(channels * fmt.SampleSize);
+        var byteRate = sampleRate * blockAlign;
+        var audioFormat = fmt.SampleFormat == VgmSampleFormat.Float ? (ushort)3 /* WAVE_FORMAT_IEEE_FLOAT */ : (ushort)1 /* PCM */;
 
         long riffSizePos, dataSizePos, dataStartPos;
 
@@ -47,11 +46,13 @@ public static class WaveWriter
             dataStartPos = output.Position;
 
             foreach (var block in stream.RenderBlocks())
+            {
                 w.Write(block);
+            }
 
-            long dataEndPos = output.Position;
-            uint dataSize = (uint)(dataEndPos - dataStartPos);
-            uint riffSize = (uint)(dataEndPos - riffSizePos - 4 + 4); // RIFF size excludes 'RIFF'+size itself
+            var dataEndPos = output.Position;
+            var dataSize = (uint)(dataEndPos - dataStartPos);
+            var riffSize = (uint)(dataEndPos - riffSizePos - 4 + 4); // RIFF size excludes 'RIFF'+size itself
 
             output.Position = riffSizePos;
             w.Write(riffSize);

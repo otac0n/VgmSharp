@@ -1,21 +1,12 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <!--
-    NuGet already resolves runtimes/<rid>/native/* automatically for apps built with an explicit
-    RuntimeIdentifier (self-contained, or `dotnet publish -r <rid>`). This target is a safety net
-    for framework-dependent builds/publishes that don't set one, by copying the native asset that
-    matches the *current build machine's* RID next to the output; good enough for `dotnet run`
-    and local development; cross-publishing for another OS still needs an explicit -r <rid>.
-  -->
   <Target Name="VgmSharpCopyNativeAssets" AfterTargets="Build;Publish">
     <PropertyGroup>
       <_VgmSharpRid Condition="$([MSBuild]::IsOSPlatform('Windows'))">win-x64</_VgmSharpRid>
       <_VgmSharpRid Condition="$([MSBuild]::IsOSPlatform('Linux'))">linux-x64</_VgmSharpRid>
-      <_VgmSharpNativeFile Condition="'$(_VgmSharpRid)' == 'win-x64'">vgmstream.dll</_VgmSharpNativeFile>
-      <_VgmSharpNativeFile Condition="'$(_VgmSharpRid)' == 'linux-x64'">libvgmstream.so</_VgmSharpNativeFile>
     </PropertyGroup>
     <ItemGroup Condition="'$(_VgmSharpRid)' != ''">
-      <_VgmSharpNativeAsset Include="$(MSBuildThisFileDirectory)../runtimes/$(_VgmSharpRid)/native/$(_VgmSharpNativeFile)" />
+      <_VgmSharpNativeAsset Include="$(MSBuildThisFileDirectory)../runtimes/$(_VgmSharpRid)/native/**/*" />
     </ItemGroup>
-    <Copy SourceFiles="@(_VgmSharpNativeAsset)" DestinationFolder="$(OutDir)" Condition="Exists('%(_VgmSharpNativeAsset.Identity)')" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_VgmSharpNativeAsset)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
   </Target>
 </Project>

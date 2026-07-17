@@ -1,68 +1,90 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Runtime.InteropServices;
 using VgmSharp.Native;
 
 namespace VgmSharp;
 
 /// <summary>
-/// A single opened game-audio stream/subsong, backed by vgmstream's native libvgmstream.
-/// Not thread-safe: use one instance per thread, or synchronize externally.
+/// A single opened audio stream / subsong, backed by vgmstream's native libvgmstream.
 /// </summary>
+/// <remarks>
+/// Not thread-safe: use one instance per thread, or synchronize externally.
+/// </remarks>
 public sealed class VgmStream : IDisposable
 {
-    private IntPtr _lib;
-    private bool _disposed;
+    private IntPtr lib;
+    private bool disposed;
 
     public VgmStreamFormat Format { get; private set; }
-    public bool Done { get; private set; }
 
-    private VgmStream(IntPtr lib)
-    {
-        _lib = lib;
-        RefreshFormat();
-    }
+    public bool Done { get; private set; }
 
     /// <summary>API version reported by the loaded native library (major.minor.patch).</summary>
     public static Version NativeApiVersion
     {
         get
         {
-            uint v = NativeMethods.libvgmstream_get_version();
+            var v = NativeMethods.libvgmstream_get_version();
             return new Version((int)((v >> 24) & 0xFF), (int)((v >> 16) & 0xFF), (int)(v & 0xFFFF));
         }
     }
 
-    /// <summary>Opens a subsong from a real file on disk.</summary>
-    /// <param name="subsong">1..N, or 0 for the default/first subsong.</param>
+    private VgmStream(IntPtr lib)
+    {
+        this.lib = lib;
+        this.RefreshFormat();
+    }
+
+    /// <summary>Opens a subsong from a file on disk.</summary>
+    /// <param name="filePath">The path of the file to open.</param>
+    /// <param name="subsong"><c>1..N</c>, or <c>0</c> for the default subsong.</param>
+    /// <param name="config">Optional playback/decode configuration.</param>
     public static VgmStream Open(string filePath, int subsong = 0, VgmStreamConfig? config = null)
     {
-        if (filePath is null) throw new ArgumentNullException(nameof(filePath));
-        if (!File.Exists(filePath)) throw new FileNotFoundException("File not found.", filePath);
+        ArgumentNullException.ThrowIfNull(filePath);
 
-        IntPtr libsf = NativeMethods.libstreamfile_open_from_stdio(filePath);
+        if (!File.Exists(filePath))
+        {
+            throw new FileNotFoundException("File not found.", filePath);
+        }
+
+        var libsf = NativeMethods.libstreamfile_open_from_stdio(filePath);
         if (libsf == IntPtr.Zero)
+        {
             throw new VgmStreamException($"Could not open '{filePath}' for reading.");
+        }
 
         return OpenCore(libsf, subsong, config, disposeAfter: null);
     }
 
     /// <summary>
     /// Opens a subsong from an arbitrary managed <see cref="Stream"/> (must support Seek + Read).
-    /// See <see cref="ManagedStreamFile"/> for the caveats vs. real file paths
-    /// (companion-file lookups aren't supported for stream-backed input).
+    /// See <see cref="ManagedStreamFile"/> for details on how self-reopen and companion files work.
     /// </summary>
-    /// <param name="virtualFilename">
-    /// A filename (extension matters!) vgmstream uses to pick the right format parser,
-    /// even though no such file needs to exist on disk.
+    /// <param name="stream">The input stream containing the audio data.</param>
+    /// <param name="virtualFilename">A required filename vgmstream uses to pick the right format parser.</param>
+    /// <param name="subsong"><c>1..N</c>, or <c>0</c> for the default subsong.</param>
+    /// <param name="config">Optional playback/decode configuration.</param>
+    /// <param name="openRelatedFile">
+    /// <para>Optional. Called when vgmstream wants to open a file other than the stream itself.</para>
+    /// <para>Use this to plug in your own filesystem abstraction (embedded resources, an IFileSystem wrapper,
+    /// a virtual/packed filesystem, etc.) instead of real disk I/O.</para>
+    /// <para>Paths will be rooted based on <paramref name="virtualFilename"/>.</para>
     /// </param>
-    public static VgmStream OpenFromStream(Stream stream, string virtualFilename, int subsong = 0, VgmStreamConfig? config = null)
+    public static VgmStream OpenFromStream(
+        Stream stream,
+        string virtualFilename,
+        int subsong = 0,
+        VgmStreamConfig? config = null,
+        Func<string, Stream?>? openRelatedFile = null)
     {
-        if (stream is null) throw new ArgumentNullException(nameof(stream));
-        if (string.IsNullOrEmpty(virtualFilename)) throw new ArgumentException("A virtual filename with extension is required.", nameof(virtualFilename));
+        ArgumentNullException.ThrowIfNull(stream);
 
-        var msf = new ManagedStreamFile(stream, virtualFilename);
+        if (string.IsNullOrEmpty(virtualFilename))
+        {
+            throw new ArgumentException("A virtual filename with extension is required.", nameof(virtualFilename));
+        }
+
+        var msf = new ManagedStreamFile(stream, virtualFilename, openRelatedFile);
         try
         {
             return OpenCore(msf.NativePointer, subsong, config, disposeAfter: msf);
@@ -76,7 +98,7 @@ public sealed class VgmStream : IDisposable
 
     private static VgmStream OpenCore(IntPtr libsf, int subsong, VgmStreamConfig? config, IDisposable? disposeAfter)
     {
-        IntPtr lib = NativeMethods.libvgmstream_init();
+        var lib = NativeMethods.libvgmstream_init();
         if (lib == IntPtr.Zero)
         {
             NativeMethods.libstreamfile_close(libsf);
@@ -90,7 +112,7 @@ public sealed class VgmStream : IDisposable
             NativeMethods.libvgmstream_setup(lib, ref native);
         }
 
-        int result = NativeMethods.libvgmstream_open_stream(lib, libsf, subsong);
+        var result = NativeMethods.libvgmstream_open_stream(lib, libsf, subsong);
 
         // Per libvgmstream.h: the streamfile isn't needed after _open_stream and should be
         // closed here; vgmstream re-opens internally (e.g. for companion files) as needed.
@@ -110,81 +132,86 @@ public sealed class VgmStream : IDisposable
 
     private void RefreshFormat()
     {
-        var libStruct = Marshal.PtrToStructure<LibvgmstreamT>(_lib);
+        var libStruct = Marshal.PtrToStructure<LibvgmstreamT>(this.lib);
         var fmt = Marshal.PtrToStructure<LibvgmstreamFormatT>(libStruct.format);
-        Format = new VgmStreamFormat(fmt);
+        this.Format = new VgmStreamFormat(fmt);
     }
 
     /// <summary>
-    /// Decodes the next internal chunk of audio. The returned span points into native memory
-    /// that stays valid only until the next call to <see cref="Render"/> or disposal --
-    /// copy it out (e.g. via <c>ToArray()</c>) before calling Render again if you need to keep it.
+    /// Decodes the next internal chunk of audio.
     /// </summary>
+    /// <remarks>
+    /// The returned span points into native memory that stays valid only until the next call to <see cref="Render"/> or disposal.
+    /// </remarks>
     public unsafe ReadOnlySpan<byte> Render()
     {
-        ThrowIfDisposed();
+        ObjectDisposedException.ThrowIf(this.disposed, this);
 
-        int result = NativeMethods.libvgmstream_render(_lib);
+        var result = NativeMethods.libvgmstream_render(this.lib);
         if (result < 0)
+        {
             throw new VgmStreamException($"libvgmstream_render() failed ({result}).");
+        }
 
-        var libStruct = Marshal.PtrToStructure<LibvgmstreamT>(_lib);
+        var libStruct = Marshal.PtrToStructure<LibvgmstreamT>(this.lib);
         var dec = Marshal.PtrToStructure<LibvgmstreamDecoderT>(libStruct.decoder);
-        Done = dec.done;
+        this.Done = dec.done;
 
         if (dec.buf == IntPtr.Zero || dec.buf_bytes <= 0)
-            return ReadOnlySpan<byte>.Empty;
+        {
+            return [];
+        }
 
         return new ReadOnlySpan<byte>((void*)dec.buf, dec.buf_bytes);
     }
 
     /// <summary>
-    /// Fills a caller-provided buffer with up to <paramref name="sampleCountPerChannel"/> samples.
-    /// Returns the number of samples-per-channel actually decoded (may be less at end of stream,
-    /// with the remainder of the buffer zeroed by vgmstream).
+    /// Fills a specified buffer with up to <paramref name="sampleCountPerChannel"/> samples.
     /// </summary>
+    /// <returns>
+    /// The number of samples-per-channel actually decoded (may be less at end of stream,
+    /// with the remainder of the buffer zeroed by vgmstream).
+    /// </returns>
     public unsafe int Fill(Span<byte> buffer, int sampleCountPerChannel)
     {
-        ThrowIfDisposed();
+        ObjectDisposedException.ThrowIf(this.disposed, this);
 
-        int bytesNeeded = sampleCountPerChannel * Format.Channels * Format.SampleSize;
+        var bytesNeeded = sampleCountPerChannel * this.Format.Channels * this.Format.SampleSize;
         if (buffer.Length < bytesNeeded)
+        {
             throw new ArgumentException(
                 $"Buffer too small: need at least {bytesNeeded} bytes for {sampleCountPerChannel} samples/channel.",
                 nameof(buffer));
+        }
 
         fixed (byte* p = buffer)
         {
-            int result = NativeMethods.libvgmstream_fill(_lib, (IntPtr)p, sampleCountPerChannel);
+            var result = NativeMethods.libvgmstream_fill(this.lib, (IntPtr)p, sampleCountPerChannel);
             if (result < 0)
+            {
                 throw new VgmStreamException($"libvgmstream_fill() failed ({result}).");
+            }
 
-            // libvgmstream_fill's return value is just a >=0/<0 result code, NOT the sample
-            // count (unlike _render). The actual number of samples decoded into our buffer is
-            // reported via decoder->buf_samples.
-            var libStruct = Marshal.PtrToStructure<LibvgmstreamT>(_lib);
+            var libStruct = Marshal.PtrToStructure<LibvgmstreamT>(this.lib);
             var dec = Marshal.PtrToStructure<LibvgmstreamDecoderT>(libStruct.decoder);
-            Done = dec.done;
+            this.Done = dec.done;
             return dec.buf_samples;
         }
-    }
-
-    private void RefreshDoneFlag()
-    {
-        var libStruct = Marshal.PtrToStructure<LibvgmstreamT>(_lib);
-        var dec = Marshal.PtrToStructure<LibvgmstreamDecoderT>(libStruct.decoder);
-        Done = dec.done;
     }
 
     /// <summary>Streams decoded blocks until the stream is done. Each block is a fresh managed copy.</summary>
     public IEnumerable<byte[]> RenderBlocks()
     {
-        while (!Done)
+        while (!this.Done)
         {
-            var span = Render();
+            var span = this.Render();
             if (span.Length == 0)
             {
-                if (Done) yield break;
+                if (this.Done)
+                {
+                    yield break;
+                }
+
                 continue;
             }
             yield return span.ToArray();
@@ -195,8 +222,11 @@ public sealed class VgmStream : IDisposable
     public byte[] DecodeAll()
     {
         using var ms = new MemoryStream();
-        foreach (var block in RenderBlocks())
+        foreach (var block in this.RenderBlocks())
+        {
             ms.Write(block, 0, block.Length);
+        }
+
         return ms.ToArray();
     }
 
@@ -207,46 +237,54 @@ public sealed class VgmStream : IDisposable
         WaveWriter.Write(fs, this);
     }
 
-    public long Position => NativeMethods.libvgmstream_get_play_position(_lib);
+    public long Position =>
+        NativeMethods.libvgmstream_get_play_position(this.lib);
 
     public void Seek(long sample)
     {
-        ThrowIfDisposed();
-        NativeMethods.libvgmstream_seek(_lib, sample);
-        RefreshDoneFlag();
+        ObjectDisposedException.ThrowIf(this.disposed, this);
+        NativeMethods.libvgmstream_seek(this.lib, sample);
+        this.RefreshDoneFlag();
     }
 
     public void Reset()
     {
-        ThrowIfDisposed();
-        NativeMethods.libvgmstream_reset(_lib);
-        Done = false;
-        RefreshFormat();
-    }
-
-    private void ThrowIfDisposed()
-    {
-        if (_disposed) throw new ObjectDisposedException(nameof(VgmStream));
+        ObjectDisposedException.ThrowIf(this.disposed, this);
+        NativeMethods.libvgmstream_reset(this.lib);
+        this.Done = false;
+        this.RefreshFormat();
     }
 
     public void Dispose()
     {
-        if (_disposed) return;
-        _disposed = true;
-        if (_lib != IntPtr.Zero)
+        if (this.disposed)
         {
-            NativeMethods.libvgmstream_free(_lib);
-            _lib = IntPtr.Zero;
+            return;
         }
+
+        this.FreeNativeResources();
+        this.disposed = true;
         GC.SuppressFinalize(this);
+    }
+
+    private void RefreshDoneFlag()
+    {
+        var libStruct = Marshal.PtrToStructure<LibvgmstreamT>(this.lib);
+        var dec = Marshal.PtrToStructure<LibvgmstreamDecoderT>(libStruct.decoder);
+        this.Done = dec.done;
+    }
+
+    private void FreeNativeResources()
+    {
+        if (this.lib != IntPtr.Zero)
+        {
+            NativeMethods.libvgmstream_free(this.lib);
+            this.lib = IntPtr.Zero;
+        }
     }
 
     ~VgmStream()
     {
-        if (_lib != IntPtr.Zero)
-        {
-            NativeMethods.libvgmstream_free(_lib);
-            _lib = IntPtr.Zero;
-        }
+        this.FreeNativeResources();
     }
 }

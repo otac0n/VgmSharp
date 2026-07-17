@@ -1,5 +1,3 @@
-using System;
-
 namespace VgmSharp;
 
 public sealed class VgmStreamException : Exception

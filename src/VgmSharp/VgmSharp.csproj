@@ -6,7 +6,6 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <!-- NuGet package metadata -->
     <PackageId>VgmSharp</PackageId>
     <Version>0.1.0</Version>
     <Authors>you</Authors>
@@ -17,17 +16,11 @@
     <IncludeBuildOutput>true</IncludeBuildOutput>
     <NoWarn>NU5128</NoWarn>
   </PropertyGroup>
-  <!--
-    Native binaries are placed under runtimes/<rid>/native by the native build scripts
-    (see native/build-linux.sh and native/build-windows.ps1) before packing.
-    They are included here with the correct NuGet "runtimes" pack path so that
-    `dotnet publish` / the NuGet runtime resolver copies the right one automatically
-    for win-x64 / linux-x64 consumers, and so plain `dotnet build` in this repo also
-    copies the native lib for the *current* RID next to the managed dll for local testing.
-  -->
   <ItemGroup>
     <None Include="../../buildTransitive/VgmSharp.targets" Pack="true" PackagePath="buildTransitive/VgmSharp.targets" />
-    <None Include="../../runtimes/linux-x64/native/libvgmstream.so" Condition="Exists('../../runtimes/linux-x64/native/libvgmstream.so')" Pack="true" PackagePath="runtimes/linux-x64/native/libvgmstream.so" CopyToOutputDirectory="PreserveNewest" Link="libvgmstream.so" Visible="false" />
-    <None Include="../../runtimes/win-x64/native/vgmstream.dll" Condition="Exists('../../runtimes/win-x64/native/vgmstream.dll')" Pack="true" PackagePath="runtimes/win-x64/native/vgmstream.dll" CopyToOutputDirectory="PreserveNewest" Link="vgmstream.dll" Visible="false" />
+    <_VgmSharpNativeLinux Include="../../runtimes/linux-x64/native/**/*" />
+    <_VgmSharpNativeWin Include="../../runtimes/win-x64/native/**/*" />
+    <None Include="@(_VgmSharpNativeLinux)" Pack="true" PackagePath="runtimes/linux-x64/native/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" Link="%(Filename)%(Extension)" Visible="false" />
+    <None Include="@(_VgmSharpNativeWin)" Pack="true" PackagePath="runtimes/win-x64/native/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" Link="%(Filename)%(Extension)" Visible="false" />
   </ItemGroup>
 </Project>
