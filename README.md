@@ -1,8 +1,41 @@
-# VgmSharp
+VgmSharp
+========
+
+[![ISC Licensed](https://img.shields.io/badge/license-ISC-blue.svg?style=flat-square)](license.md)
+[![Get it on NuGet](https://img.shields.io/nuget/v/VgmSharp.svg?style=flat-square)](http://nuget.org/packages/Farkle)
 
 A cross-platform .NET wrapper around [vgmstream](https://github.com/vgmstream/vgmstream)'s `libvgmstream` C API, for decoding hundreds of video game audio formats (ADX, HCA, DSP, BRSTM, XWMA, and many more — see `VgmStream.NativeApiVersion` / `libvgmstream_get_extensions()`).
 
-## Building
+Getting Started
+---------------
+
+```powershell
+PM> Install-Package VgmSharp
+```
+
+```csharp
+using VgmSharp;
+
+// Decode a file straight to a .wav
+using var input = VgmStreamReader.Open("bgm01.adx", config: VgmStreamConfig.PlayOnceNoLoop());
+using var output = File.Create("bgm01.wav");
+stream.DecodeTo(output);
+
+// Or stream it
+using var reader = VgmStreamReader.Open("bgm01.adx");
+Console.WriteLine(stream.Format); // channels, sample rate, codec, loop points, etc.
+foreach (var pcmBlock in reader.RenderBlocks())
+{
+    // ...
+}
+
+// Or decode from an arbitrary Stream (archive entry, embedded resource, network...)
+using var reader2 = VgmStreamReader.Open(myStream, "stream.vag");
+byte[] pcm = reader2.DecodeAll();
+```
+
+Building
+--------
 
 ```bash
 # requires: git, cmake, build-essential, libmpg123-dev, libvorbis-dev, libspeex-dev
@@ -18,24 +51,3 @@ A cross-platform .NET wrapper around [vgmstream](https://github.com/vgmstream/vg
 dotnet pack src\VgmSharp.slnx -c Release
 ```
 
-## Usage
-
-```csharp
-using VgmSharp;
-
-// Decode a file straight to a .wav
-using var stream = VgmStream.Open("bgm01.adx", config: VgmStreamConfig.PlayOnceNoLoop());
-Console.WriteLine(stream.Format); // channels, sample rate, codec, loop points, etc.
-stream.DecodeToWavFile("bgm01.wav");
-
-// Or stream it
-using var stream2 = VgmStream.Open("bgm01.adx");
-foreach (var pcmBlock in stream2.RenderBlocks())
-{
-    // ...
-}
-
-// Or decode from an arbitrary Stream (archive entry, embedded resource, network...)
-using var stream3 = VgmStream.OpenFromStream(myStream, "bgm01.adx");
-byte[] pcm = stream3.DecodeAll();
-```

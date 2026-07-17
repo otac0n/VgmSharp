@@ -1,6 +1,17 @@
 <Solution>
+  <Folder Name="/Build/">
+    <File Path="../native/build-linux.sh" />
+    <File Path="../native/build-windows.ps1" />
+  </Folder>
   <Folder Name="/Solution Items/">
+    <File Path="../.editorconfig" />
+    <File Path="../.gitattributes" />
+    <File Path="../.gitignore" />
+    <File Path="../.gitmodules" />
+    <File Path="../GitVersion.yaml" />
+    <File Path="../license.md" />
     <File Path="../README.md" />
+    <File Path="../stylecop.json" />
   </Folder>
   <Project Path="VgmSharp/VgmSharp.csproj" />
 </Solution>

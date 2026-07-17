@@ -1,45 +1,50 @@
-﻿using System.Runtime.InteropServices;
-using VgmSharp.Native;
+﻿// Copyright © John Gietzen. All Rights Reserved. This source is subject to the ISC license. Please see license.md for more information.
 
-namespace VgmSharp;
-
-/// <summary>
-/// Provides file extension information for vgmstream.
-/// </summary>
-public static class FileExtensions
+namespace VgmSharp
 {
-    private static IReadOnlyList<string>? allExtensions;
-    private static IReadOnlyList<string>? commonExtensions;
+    using System.Diagnostics.CodeAnalysis;
+    using System.Runtime.InteropServices;
+    using VgmSharp.Native;
 
     /// <summary>
-    /// Every file extension (no leading dot, e.g. <c>"vag"</c>) that vgmstream's format parsers recognize.
+    /// Provides file extension information for vgmstream.
     /// </summary>
-    public static IReadOnlyList<string> SupportedExtensions
-        => allExtensions ??= ReadExtensionList(NativeMethods.libvgmstream_get_extensions);
-
-    /// <summary>
-    /// The subset of <see cref="SupportedExtensions"/> that vgmstream considers common formats (e.g. <c>"wav"</c>, <c>"ogg"</c>).
-    /// </summary>
-    public static IReadOnlyList<string> CommonExtensions
-        => commonExtensions ??= ReadExtensionList(NativeMethods.libvgmstream_get_common_extensions);
-
-    private delegate IntPtr GetExtensionsNative(out int size);
-
-    private static IReadOnlyList<string> ReadExtensionList(GetExtensionsNative native)
+    public static class FileExtensions
     {
-        var arrayPtr = native(out var count);
-        if (arrayPtr == IntPtr.Zero || count <= 0)
-        {
-            return [];
-        }
+        private delegate IntPtr GetExtensionsNative(out int size);
 
-        var result = new List<string>(count);
-        for (var i = 0; i < count; i++)
-        {
-            var strPtr = Marshal.ReadIntPtr(arrayPtr, i * IntPtr.Size);
-            result.Add(Marshal.PtrToStringAnsi(strPtr) ?? string.Empty);
-        }
+        /// <summary>
+        /// Gets the file extensions that vgmstream's format parsers recognize.
+        /// </summary>
+        /// <remarks>
+        /// The extensions do not include a leading dot, e.g. <c>"vag"</c>.
+        /// </remarks>
+        public static IReadOnlyList<string> SupportedExtensions
+            => field ??= ReadExtensionList(NativeMethods.libvgmstream_get_extensions);
 
-        return result.AsReadOnly();
+        /// <summary>
+        /// Gets the subset of <see cref="SupportedExtensions"/> that vgmstream considers common formats.
+        /// </summary>
+        public static IReadOnlyList<string> CommonExtensions
+            => field ??= ReadExtensionList(NativeMethods.libvgmstream_get_common_extensions);
+
+        [SuppressMessage("Performance", "CA1859:Use concrete types when possible for improved performance", Justification = "The empty array is not concretely a ReadOnlyCollection.")]
+        private static IReadOnlyList<string> ReadExtensionList(GetExtensionsNative native)
+        {
+            var arrayPtr = native(out var count);
+            if (arrayPtr == IntPtr.Zero || count <= 0)
+            {
+                return [];
+            }
+
+            var result = new List<string>(count);
+            for (var i = 0; i < count; i++)
+            {
+                var strPtr = Marshal.ReadIntPtr(arrayPtr, i * IntPtr.Size);
+                result.Add(Marshal.PtrToStringAnsi(strPtr) ?? string.Empty);
+            }
+
+            return result.AsReadOnly();
+        }
     }
 }
