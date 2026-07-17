@@ -1,0 +1,3 @@
+[submodule "native/vgmstream-src"]
+	path = native/vgmstream-src
+	url = https://github.com/vgmstream/vgmstream.git

@@ -1,39 +1,24 @@
 #!/usr/bin/env bash
-# Builds libvgmstream.so for linux-x64 and drops it, plus its non-libc runtime
-# dependencies (libmpg123/libvorbis/libvorbisfile/libspeex/libogg), into
-# runtimes/linux-x64/native/. Verified end-to-end in isolation with the system copies
-# of those libs hidden -- without bundling them, this only works by coincidence on a
-# machine that happens to already have those exact apt packages installed.
-#
-# Requires: git, cmake, a C/C++ toolchain, and (for full codec coverage) the -dev packages below.
-#   sudo apt-get install -y git cmake build-essential libmpg123-dev libvorbis-dev libspeex-dev
-#
-# FFmpeg (USE_FFMPEG) is intentionally left off by default: it pulls in a much heavier/slower
-# build and a bunch of extra runtime .so deps to ship. Flip USE_FFMPEG=ON below (and install
-# libavformat-dev libavcodec-dev libavutil-dev libswresample-dev) if you need the extra codecs
-# it unlocks (many movie/streaming formats) -- note this script doesn't yet bundle FFmpeg's own
-# .so dependencies the way it does for mpg123/vorbis/speex below; extend the ldd-filtering loop
-# near the bottom if you turn this on.
-#
-# Note: USE_CELT/USE_G719/USE_ATRAC9/USE_G7221 pull their source via CMake FetchContent at
-# configure time (git clone from github.com/gitlab.xiph.org), so this needs unrestricted
-# internet access on whatever machine/CI runner does the build.
 set -euo pipefail
+
+for pkg in libmpg123 vorbisfile speex; do
+  if ! pkg-config --exists "$pkg" 2>/dev/null; then
+    echo "Missing development package for $pkg."
+    echo "Install the required packages before building."
+    exit 1
+  fi
+done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-VGMSTREAM_REF="${VGMSTREAM_REF:-79fda53d6887e4a3dfe962c65c2e9291792da2fc}"
 SRC_DIR="$SCRIPT_DIR/vgmstream-src"
 BUILD_DIR="$SRC_DIR/build-linux-x64"
 OUT_DIR="$REPO_ROOT/runtimes/linux-x64/native"
 
-if [ ! -d "$SRC_DIR" ]; then
-  git clone https://github.com/vgmstream/vgmstream.git "$SRC_DIR"
-fi
+git submodule update --init --recursive
 cd "$SRC_DIR"
-git fetch --depth 1 origin "$VGMSTREAM_REF" 2>/dev/null || git fetch
-git checkout "$VGMSTREAM_REF"
+#git submodule update --init --recursive
 
 rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR"

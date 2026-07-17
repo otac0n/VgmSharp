@@ -12,7 +12,6 @@
 # and has no -A equivalent, it just builds whatever architecture the active compiler targets).
 
 param(
-    [string]$VgmstreamRef = "79fda53d6887e4a3dfe962c65c2e9291792da2fc",
     [switch]$UseFfmpeg = $false,
     [string]$Generator = ""
 )
@@ -25,13 +24,9 @@ $SrcDir = Join-Path $ScriptDir "vgmstream-src"
 $BuildDir = Join-Path $SrcDir "build-win-x64"
 $OutDir = Join-Path $RepoRoot "runtimes\win-x64\native"
 
-if (-not (Test-Path $SrcDir)) {
-    git clone https://github.com/vgmstream/vgmstream.git $SrcDir
-}
+git submodule update --init --recursive
 Push-Location $SrcDir
-git fetch --depth 1 origin $VgmstreamRef 2>$null
-if ($LASTEXITCODE -ne 0) { git fetch }
-git checkout $VgmstreamRef
+#git submodule update --init --recursive
 
 if (Test-Path $BuildDir) { Remove-Item -Recurse -Force $BuildDir }
 New-Item -ItemType Directory -Path $BuildDir | Out-Null

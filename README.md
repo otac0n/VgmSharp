@@ -38,7 +38,7 @@ Building
 --------
 
 ```bash
-# requires: git, cmake, build-essential, libmpg123-dev, libvorbis-dev, libspeex-dev
+sudo apt-get install -y git cmake build-essential libmpg123-dev libvorbis-dev libspeex-dev
 ./native/build-linux.sh
 ```
 
