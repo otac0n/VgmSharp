@@ -2,7 +2,7 @@ VgmSharp
 ========
 
 [![ISC Licensed](https://img.shields.io/badge/license-ISC-blue.svg?style=flat-square)](license.md)
-[![Get it on NuGet](https://img.shields.io/nuget/v/VgmSharp.svg?style=flat-square)](http://nuget.org/packages/Farkle)
+[![Get it on NuGet](https://img.shields.io/nuget/v/VgmSharp.svg?style=flat-square)](http://nuget.org/packages/VgmSharp)
 
 A cross-platform .NET wrapper around [vgmstream](https://github.com/vgmstream/vgmstream)'s `libvgmstream` C API, for decoding hundreds of video game audio formats (ADX, HCA, DSP, BRSTM, XWMA, and many more — see `VgmStream.NativeApiVersion` / `libvgmstream_get_extensions()`).
 
@@ -19,7 +19,7 @@ using VgmSharp;
 // Decode a file straight to a .wav
 using var input = VgmStreamReader.Open("bgm01.adx", config: VgmStreamConfig.PlayOnceNoLoop());
 using var output = File.Create("bgm01.wav");
-stream.DecodeTo(output);
+input.DecodeTo(output);
 
 // Or stream it
 using var reader = VgmStreamReader.Open("bgm01.adx");
