@@ -220,12 +220,12 @@ namespace VgmSharp
 
             using var w = new BinaryWriter(output, Encoding.ASCII, leaveOpen: true);
 
-            w.Write("RIFF");
+            w.Write("RIFF".ToCharArray());
             riffSizePos = output.Position;
             w.Write(0U);
-            w.Write("WAVE");
+            w.Write("WAVE".ToCharArray());
 
-            w.Write("fmt ");
+            w.Write("fmt ".ToCharArray());
             w.Write(16U);
             w.Write(audioFormat);
             w.Write(channels);
@@ -234,7 +234,7 @@ namespace VgmSharp
             w.Write(blockAlign);
             w.Write(bitsPerSample);
 
-            w.Write("data");
+            w.Write("data".ToCharArray());
             dataSizePos = output.Position;
             w.Write(0U);
             dataStartPos = output.Position;
